@@ -1,13 +1,24 @@
 import React, { useEffect, useState, useRef } from 'react'
 import Webcam from "react-webcam";
+import { detectCheating, extractFaceCoordinates, getCheatingStatus, } from "../helpers/face-detection-helper";
+import { NO_CHEATING_RESULT } from "../helpers/face-detection-constants";
+import { FaceDetection } from "@mediapipe/face_detection";
+import { Camera } from "@mediapipe/camera_utils";
+
 
 const Exam = (props) => {
   const [examStarted, setExamStarted] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(300); // 5 minutes = 300 seconds
   const [isRunning, setIsRunning] = useState(false);
+  const [showWarning, setShowWarning] = useState(false);
+  const [warningMessage, setWarningMessage] = useState('');
   const [exam, setExam] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [cheatingAlert, setCheatingAlert] = useState('');
+
+  const webcamRef = useRef(null);
+  const faceDetectionRef = useRef(null);
 
   // for decoding " "
   const decodeHTMLEntities = (text) => {
@@ -82,10 +93,7 @@ const Exam = (props) => {
     return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
-  const [showWarning, setShowWarning] = useState(false);
-  const [warningMessage, setWarningMessage] = useState('');
-
-  // // Handle visibility change event
+  // Handle visibility change event
   const handleVisibilityChange = () => {
     if (document.hidden) {
       // Tab is not visible
@@ -137,6 +145,54 @@ const Exam = (props) => {
     };
   }, []);
 
+  // face detection
+  useEffect(() => {
+    const faceDetection = new FaceDetection({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`,
+    });
+
+    faceDetection.setOptions({
+      minDetectionConfidence: 0.5,
+      model: "short",
+    });
+
+    function onResult(result) {
+      if (result.detections.length < 1) {
+        setCheatingAlert("Face not detected. Ensure your face is visible!");
+        return;
+      } else if (result.detections.length > 1) {
+        setCheatingAlert("Multiple faces detected. Possible cheating!");
+        return;
+      }
+
+      const faceCoordinates = extractFaceCoordinates(result);
+      const [lookingLeft, lookingRight] = detectCheating(faceCoordinates);
+      const cheatingStatus = getCheatingStatus(lookingLeft, lookingRight);
+      setCheatingAlert(cheatingStatus);
+    }
+
+    faceDetection.onResults(onResult);
+    faceDetectionRef.current = faceDetection;
+
+    if (webcamRef.current) {
+      const camera = new Camera(webcamRef.current.video, {
+        onFrame: async () => {
+          if (examStarted) {
+            await faceDetection.send({ image: webcamRef.current.video });
+          }
+        },
+        // width: 1280,
+        // height: 720,
+      });
+
+      camera.start();
+    }
+
+    return () => {
+      faceDetection.close();
+    };
+  }, [examStarted]);
+
 
   return (
     <>
@@ -171,7 +227,7 @@ const Exam = (props) => {
           <div className='d-flex h-100'>
             <div className='w-75 p-4'>
               {!examStarted && !submitted && (
-                <p className='text-info text-center'>Start Your Exam.</p>
+                <p className='text-dark text-center fw-bold'>Start Your Exam.</p>
               )}
               {examStarted && !submitted && exam.length > 0 && (
                 <div>
@@ -195,7 +251,7 @@ const Exam = (props) => {
                 </div>
               )}
               {submitted && (
-                <p className='text-success text-center'>Exam has been submitted.</p>
+                <p className='text-success text-center fw-bold'>Exam has been submitted.</p>
               )}
             </div>
 
@@ -210,11 +266,12 @@ const Exam = (props) => {
       </div>
 
       <div className='camera'>
+        {cheatingAlert && <p className='text-danger fw-bold m-4'>{cheatingAlert}</p>}
         <div className='w-25 shadow p-3 mb-5 bg-body-tertiary'>
           {/* Webcam display */}
           <Webcam
             audio={true}
-            //  ref={webcamRef}
+            ref={webcamRef}
             screenshotFormat="image/jpeg"
             width="100%"
             videoConstraints={{ facingMode: 'user' }}

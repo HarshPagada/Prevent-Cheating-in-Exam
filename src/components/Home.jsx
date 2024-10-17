@@ -20,7 +20,7 @@ const Home = () => {
       <div className='home-main'>
         <h1 className='py-2' style={{ fontSize: "3rem" }}>ONLINE EXAMS MADE FAIRER</h1>
         <p className='py-2' style={{ fontSize: "1rem" }}>Detect cheating in online exams with the power of Artificial Intelligence & Machine Learning</p>
-        {!localStorage.getItem('token') ? <Link type="button" class="btn btn-info" to="/Login">Log In</Link>: <button onClick={clickLogout} className='btn btn-primary'>Logout</button>}
+        {!localStorage.getItem('token') ? <Link type="button" className="btn btn-info" to="/Login">Log In</Link>: <button onClick={clickLogout} className='btn btn-primary'>Logout</button>}
       </div>
 
       {/* Features Section */}

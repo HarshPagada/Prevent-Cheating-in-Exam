@@ -29,7 +29,7 @@ const Navbar = () => {
                                 <Link className="nav-link text-white" to="/exam">Exam</Link>
                             </li>
                         </ul>
-                        {!localStorage.getItem('token') ? <Link type="button" class="btn btn-info" to="/SignUp">Sign Up</Link> : <button onClick={clickLogout} className='btn btn-primary'>Logout</button>}
+                        {!localStorage.getItem('token') ? <Link type="button" className="btn btn-info" to="/SignUp">Sign Up</Link> : <button onClick={clickLogout} className='btn btn-primary'>Logout</button>}
                     </div>
                 </div>
             </nav>
